@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 
 def load_and_preprocess_data(
-    filepath: str, start_token: str = "!", end_token: str = "."
+    filepath: str, start_token: str = "<S>", end_token: str = "<E>"
 ) -> List[Tuple[str, str]]:
     """
     Load text from a file and preprocess them into bigrams with specified start and end tokens.
@@ -29,9 +29,20 @@ def load_and_preprocess_data(
     with open(filepath, "r") as file:
         lines: List[str] = file.read().splitlines()
 
-    # TODO
-    bigrams: List[Tuple[str, str]] = None
+    bigrams: List[Tuple[str, str]] = []
 
+    for line in lines:
+        # Remove the two numbers from the line
+        line_splitted = line.split(sep = " ")
+        line_without_numbers = line_splitted[:-2]
+
+        # Obtain the name in lowercase with the start and end tokens
+        name = f"{start_token}{' '.join(line_without_numbers).lower()}{end_token}"    
+        
+        # Obtain all the bigrams from the name
+        for i in range(1,len(name)):
+            bigrams.append((name[i-1], name[i]))
+    
     return bigrams
 
 
@@ -48,8 +59,7 @@ def char_to_index(alphabet: str, start_token: str, end_token: str) -> Dict[str, 
         Dict[str, int]: A dictionary mapping each character, including start and end tokens, to an index.
     """
     # Create a dictionary with start token at the beginning and end token at the end
-    # TODO
-    char_to_idx: Dict[str, int] = None
+    char_to_idx: Dict[str, int] = {char:i for i,char in enumerate(start_token + alphabet + end_token)}
 
     return char_to_idx
 
@@ -65,8 +75,7 @@ def index_to_char(char_to_index: Dict[str, int]) -> Dict[int, str]:
         Dict[int, str]: A dictionary mapping each index back to its corresponding character.
     """
     # Reverse the char_to_index mapping
-    # TODO
-    idx_to_char: Dict[int, str] = None
+    idx_to_char: Dict[int, str] = {i:char for char,i in char_to_index.items()}
 
     return idx_to_char
 
@@ -91,12 +100,15 @@ def count_bigrams(
         formed by the i-th and j-th characters in the alphabet.
     """
 
-    # Initialize a 2D tensor for counting bigrams
-    # TODO
-    bigram_counts: torch.Tensor = None
+    # Initialize a 2D tensor for counting bigrams 
+    bigram_counts: torch.Tensor = torch.zeros((len(char_to_idx), len(char_to_idx)), dtype=torch.int32)
 
     # Iterate over each bigram and update the count in the tensor
-    # TODO
+    for char1, char2 in bigrams:
+        if char1 in char_to_idx and char2 in char_to_idx:
+            idx1 = char_to_idx[char1]
+            idx2 = char_to_idx[char2]
+            bigram_counts[idx1, idx2] += 1
 
     return bigram_counts
 

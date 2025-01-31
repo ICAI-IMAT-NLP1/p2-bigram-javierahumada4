@@ -21,10 +21,16 @@ def bigrams_count_to_probabilities(
         indicating the likelihood of each character following the character corresponding
         to the row index.
     """
+    
+    # Add the smoothing factor to each bigram count
+    smoothed_counts = bigram_counts + smooth_factor
+    
     # Normalize each row to sum to 1, converting counts to probabilities, remember to add smooth_factor
-    # TODO
-    return None
-
+    row_sums = smoothed_counts.sum(dim=1, keepdim=True)
+    row_sums[row_sums == 0] = 1 # Evita divisiones por 0
+    bigram_probabilities = smoothed_counts / row_sums
+            
+    return bigram_probabilities
 
 
 def calculate_neg_mean_log_likelihood(
@@ -52,15 +58,15 @@ def calculate_neg_mean_log_likelihood(
         float. The negative mean log likelihood of the list of words.
     """
     # Initialize total log likelihood
-    # TODO
-    total_log_likelihood: torch.tensor = None
+    total_log_likelihood: torch.tensor = torch.tensor(0.0, dtype=torch.float32)
 
     # Calculate the log likelihood for each word and accumulate
-    # TODO
+    for word in words:
+        total_log_likelihood += calculate_log_likelihood(word, bigram_probabilities, char_to_index, start_token, end_token)
 
     # Calculate and return the negative mean log likelihood
-    # TODO
-    mean_log_likelihood: float = None
+    mean_log_likelihood: float = - total_log_likelihood.item() / len(words)
+
     return mean_log_likelihood
 
 
@@ -81,16 +87,14 @@ def sample_next_character(
         str. The next character sampled based on the probability distribution.
     """
     # Get the probability distribution for the current character
-    # TODO
-    current_probs: torch.Tensor[float] = None
+    current_probs: float = probability_distribution[current_char_index]
 
     # Sample an index from the distribution using the torch.multinomial function
-    # TODO
-    next_char_index: int = None
+    next_char_index: int = torch.multinomial(current_probs, 1).item()
 
     # Map the index back to a character
-    # TODO
-    next_char: str = None
+    next_char: str = idx_to_char[next_char_index]
+    
     return next_char
 
 
@@ -121,14 +125,28 @@ def generate_name(
         str. A newly generated name.
     """
     # Start with the start token and an empty name
-    # TODO
-    current_char: str = None
-    generated_name: str = None
+    current_char: str = start_token
+    generated_name: str = start_token
 
     # Iterate to build the name
-    # TODO
+    for _ in range(max_length):
+        # Get the index of the current character
+        current_idx = char_to_idx[current_char]
+        
+        # Sample the next character
+        next_char = sample_next_character(current_idx, bigram_probabilities, idx_to_char)
 
-    return generated_name
+        # Append the next character to the name
+        generated_name += next_char
+
+        # Stop if the end token is reached
+        if next_char == end_token:
+            break
+
+        # Update the current character
+        current_char = next_char
+
+    return generated_name[1:-1]
 
 def calculate_log_likelihood(
     word: str,
@@ -157,18 +175,20 @@ def calculate_log_likelihood(
         end_char: str. The character that denotes the end of a word. Shall be a single character.
 
     Returns:
-        Tensor. The log likelihood of the word.
+        torch.Tensor. The log likelihood of the word.
     """
     # Add start and end characters to the word
-    # TODO
-    processed_word: str = None
+    processed_word: str = f"{start_token}{word}{end_token}".lower()
 
     # Initialize log likelihood
-    # TODO
-    log_likelihood: torch.tensor = None
+    log_likelihood: torch.tensor = torch.tensor(0.0, dtype=torch.float32)
 
     # Iterate through bigrams in the word and accumulate their log probabilities
-    # TODO
+    for i in range(1,len(processed_word)):
+        char1, char2 = processed_word[i-1], processed_word[i]
+        idx1, idx2 = char_to_index[char1], char_to_index[char2]
+        prob = bigram_probabilities[idx1, idx2]
+        log_likelihood += torch.log(prob + 1e-10)
 
     return log_likelihood
 
